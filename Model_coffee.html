@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>UV</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    
+</head>
+
+<body>
+    <!-- core three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+
+
+
+    <script>
+
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // ✅ เปิดใช้งานเงา!
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        const exrLoader = new THREE.EXRLoader();
+        exrLoader.load('https://trakanta4556.github.io/week11/warm_restaurant_1k.exr', function (texture) {
+        const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+
+        scene.environment = envMap;
+        scene.background = envMap;
+
+        texture.dispose();
+        pmremGenerator.dispose();
+        });
+
+
+        const scene = new THREE.Scene();
+
+        // ✅ กล้อง
+        const camera = new THREE.PerspectiveCamera(
+            35,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 2, 5);
+        camera.lookAt(0, 0, 0);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);      const ambientLight = new THREE.AmbientLight(0x808080, 0.3); // แสงสว่างทั่วไป
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffeedd, 0.5); // แสงทิศทาง
+        directionalLight.position.set(10, 5, 10);
+        directionalLight.castShadow = true; // ✅ แสงนี้สร้างเงา
+        scene.add(directionalLight);
+
+        //ไฟแกว่ง
+        const pointLight = new THREE.PointLight(0xE9967A, 0.8, 5); //สี, ความเข้ม
+        pointLight.position.set(2, 2, 1);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+        const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.1);
+        scene.add(pointLightHelper);
+
+        //GUI
+        const gui = new dat.GUI();
+
+        const lightFolder = gui.addFolder('Point Light Controls');
+        lightFolder.add(pointLight, 'intensity', 0, 2).step(0.1).name('intensity');
+        lightFolder.add(pointLight.position, 'x', -5, 5).step(0.1).name('position X');
+        lightFolder.add(pointLight.position, 'y', 0, 5).step(0.1).name('position Y');
+        lightFolder.add(pointLight.position, 'z', -5, 5).step(0.1).name('position Z');
+        lightFolder.add(pointLight, 'distance', 0, 20).step(1).name('distance');
+        lightFolder.add(pointLight, 'visible').name('open/close light');
+
+        lightFolder.open(); // เปิดพับไว้
+
+        const lightSettings = {
+        color: pointLight.color.getHex()
+        };
+        lightFolder.addColor(lightSettings, 'color').name('color').onChange(function(value) {
+        pointLight.color.set(value);
+        });
+
+        const gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load('https://trakanta4556.github.io/week11/coffee_machine.glb', function(gltf) {
+        const model = gltf.scene;
+        model.traverse(function(child) {
+            if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+            }   
+        });
+        scene.add(model);
+    });
+
+
+        //floor
+        const texFloor = new THREE.TextureLoader().load('https://trakanta4556.github.io/week11/kitchen_wood_diff_1k.jpg', t => {
+            t.wrapS = THREE.RepeatWrapping;
+            t.wrapT = THREE.RepeatWrapping;
+        });
+            
+        const matFloor = new THREE.MeshStandardMaterial({
+            map: texFloor
+        });
+        const planeGeometry = new THREE.PlaneGeometry(3,3);
+        const plane = new THREE.Mesh(planeGeometry, matFloor);
+        plane.rotation.x = -Math.PI /2;    
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        //✅ render loop
+        function animate(t) {
+            //ไฟที่แกว่ง
+            // pointLight.position.z = Math.sin(t / 1000) *2; //ค่าsin มีตั้งแต่ 1 ถึง -1 ไฟขยับบนล่าง
+            // pointLight.position.x = Math.cos(t / 1000) *3; //ไฟขยับซ้ายขวา ถ้าsinกับcosด้วยกัน->ไฟจะขยับเป็นวงกลม
+            //mesh.position.y = Math.sin(t*0.001)*2; //t*ความเร็ว
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate(0);
+
+        window.addEventListener('keydown', (event) => {
+
+        });
+
+    </script>
+</body>
+
+</html>
